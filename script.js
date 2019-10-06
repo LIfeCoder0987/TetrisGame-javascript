@@ -32,11 +32,15 @@ const COLORS = [ // some colors that i picked up :)
 
 let tetromino = [[],[],[],[],[],[],[]]  // list of lists that hold tetris piece aka tetromino
 let Field = [];  // this list will store all element/pieces that been introduce to the game
+let Lines = [];  // list of lines made to be processed later
 
 let CurrentPiece = 0;		// all the piece
 let CurrentRotation = 0;	// information
 let CurrentX = fWidth/2;	// that we 
 let CurrentY = 0;			// need
+
+let Score = 0;
+let PieceCounter = 0;
 
 let Speed = 5;			// the speed that the game is running
 let SpeedCounter = 0;	// count loops (how many times the mainloop is called)
@@ -153,9 +157,58 @@ function UpdateFunc()
 							// we add the piece to the field so it will be part of the back ground
 							// and it will be drawn later with the board
 							Field[(CurrentY + py) * fWidth + (CurrentX + px)] = COLORS[CurrentPiece];
+
+				PieceCounter++;
+				if (PieceCounter % 10 === 0) // make the game faster every 10 pieces
+					if (Speed >= 2) Speed--;
+
+				// We check for lines before we generate new piece
+				for (let py = 0; py < 4; py++)
+					if (CurrentY + py < fHeight - 1)
+					{
+						let line = true; // we assume we got a line
+						for (let px = 1; px < fWidth; px++)
+							// we check for none white place
+							// then we do an "and" opperation "true & true = true"
+							// "true & false = false"
+							line &= (Field[(CurrentY + py) * fWidth + px]) !== "white";
+
+						if (line)
+							Lines.push(CurrentY + py);
+					}
+
+				Score += 25;  // we add score for every piece
+				if (Lines.length !== 0) Score += (1 << Lines.length) * 100; // reword the player for lines
+												// Lines.length x 2 x 100
+
+				// Chosse next piece
+				CurrentX = fWidth/2; // set to
+				CurrentY = 0;		 // Inital
+				CurrentRotation = 0; // State
+				CurrentPiece = Math.floor(Math.random() * 7);  // next random piece
+
+				// if we can't fit the new generated piece at the first location - the game is over
+				GameOver = !DoesPieceFit(CurrentPiece, CurrentRotation, CurrentX, CurrentY);
 			}
 
 			SpeedCounter = 0;
+		}
+
+		// We remove Lines
+		if (Lines.length !== 0)
+		{
+			for (let l of Lines)
+				for (let px = 1; px < fWidth - 1; px++) // we exclude the borders
+				{
+					for (let py = l; py > 0; py--)
+						// We make the line Field equal to what ever above it
+						Field[py * fWidth + px] = Field[(py - 1) * fWidth + px];
+					// and we make it back the white
+					Field[px] = "white";
+				}
+
+			// reset lines list
+			Lines = [];
 		}
 	}
 }
@@ -174,6 +227,12 @@ function DrawFunc()
 				// the "CurrentX" is like the 4x4 tetromino position
 				// and in the other hand "px" is like the index in that piece
 				DrawSquare(CurrentX + px, CurrentY + py, COLORS[CurrentPiece]);
+
+	// Draw Score ==========
+	if (!GameOver)
+		DrawString(10,40, "SCORE: "+Score, "white", "40px Arial");
+	else
+		DrawString(10,40, "Game Over, Your Score is: "+Score, "white", "40px Arial");
 }
 
 /* **** Helper Functions **** */
@@ -215,6 +274,15 @@ function DrawSquare( x,y, color )
 {
 	sContext.fillStyle = color;
 	sContext.fillRect( x * SQ + OffsetX, y * SQ + OffsetY, SQ, SQ );
+}
+
+function DrawString( x,y, string,color,font )
+{
+	sContext.font = font;
+	sContext.fillStyle = color;
+	sContext.textAlign = "left";
+	let text = string;
+	sContext.fillText( text, x,y );
 }
 
 function AddEventsListeners()
